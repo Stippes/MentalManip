@@ -1,0 +1,178 @@
+1. Data Understanding and Preparation
+1.1. Familiarize Yourself with the Dataset Structure
+
+    Files & Columns
+        mentalManip_detailed.csv: Contains each dialogue plus three annotators’ information, including whether the annotator marked it as manipulative (manipulative_1, manipulative_2, manipulative_3) or not, annotations about technique, vulnerability, etc.
+        MentalManip_con vs. MentalManip_maj: Two versions of the dataset derived from the annotation agreement. One has only fully consistent (all three annotators agree) annotations, the other has majority-rule labeling.
+    Labeling Strategy
+        Decide which version of the dataset (consistent vs. majority) you want to use, or if you want to compare both. Some researchers prefer the “cleanest” set for an initial, high-precision model (MentalManip_con). Others prefer more data (MentalManip_maj).
+
+1.2. Data Cleaning & Preprocessing
+
+    Reading the CSV
+        Use Python’s built-in csv module or another robust parser to avoid misalignment of columns (as you noted in your instructions).
+        Check for any anomalies (e.g., missing values, encoding issues, multi-line text fields) that might break row consistency.
+
+    Text Cleaning
+        Remove or normalize special symbols (e.g., Unicode quotes, dashes).
+        Potentially remove stop words, punctuation, or lower-case the text—though this can also be handled downstream by certain NLP models.
+
+    Handling Duplicates & Missing Data
+        Ensure there are no duplicate dialogue rows or suspicious annotation conflicts.
+        Decide how to handle dialogues where an annotator’s fields are missing (e.g., if technique or confidence is not provided). You might drop or impute, depending on the volume of missingness.
+
+1.3. Exploratory Data Analysis (EDA)
+
+    Label Distribution
+        Look at the ratio of manipulative vs. non-manipulative examples in each version (MentalManip_con vs. MentalManip_maj). Confirm these match the provided statistics.
+        Investigate the interplay between annotator confidence and manipulative classification.
+
+    Technique Frequency and Co-occurrence
+        You already have a frequency distribution of techniques (e.g., “Persuasion or Seduction,” “Shaming or Belittlement,” etc.).
+        Conduct co-occurrence analysis: Are certain techniques frequently appearing together (e.g., “Accusation” + “Shaming or Belittlement”)?
+        This can inform you if multi-label classification (detecting more than one manipulative technique at once) could be relevant.
+
+    Length & Linguistic Features
+        Check dialogue length (number of tokens, sentences). Are manipulative dialogues generally longer or shorter than non-manipulative ones?
+        Check for unique words or patterns (e.g., sentiment distribution, presence of negative/positive words).
+
+1.4. Data Label Finalization
+
+    Binary Classification vs. Multi-label
+        Binary: You may start with simply classifying whether a dialogue is manipulative or not.
+        Multi-label: Later, incorporate which manipulation technique(s) are present.
+
+    Selecting Which Dataset Version
+        Possibly train one model using the “clean” subset (MentalManip_con) and another using the larger, majority-based set (MentalManip_maj). Compare performance to see which is more robust.
+
+2. Modeling and Classification
+2.1. Feature Engineering Options
+
+    Classical NLP Approaches (TF-IDF / Bag-of-Words)
+        Simple and fast to implement.
+        Often a good baseline before moving to deeper embeddings.
+        Limited ability to capture context, but can still reveal strong lexical cues.
+
+    Neural Embeddings (e.g., Word2Vec, GloVe, FastText)
+        Word-level embeddings that capture semantic similarity.
+        Still require an additional layer (e.g., an LSTM, CNN, or even logistic regression) to perform classification on dialogue-level features.
+
+    Transformer-based Embeddings (BERT, RoBERTa, GPT)
+        Contextual embeddings that often yield state-of-the-art results for text classification.
+        Potentially fine-tune a pretrained model (e.g., a Dutch BERT variant if you want to generalize to Dutch dialogues in the future, or an English model for the Cornell-based portion).
+        Good at capturing deeper linguistic cues and manipulative language patterns.
+
+2.2. Modeling Strategy
+
+    Baseline Models
+        Logistic Regression or Naive Bayes on TF-IDF vectors.
+        Advantage: Quick training, interpretable coefficients, rapid iteration.
+        Disadvantage: May not capture complex manipulative language well.
+
+    Deep Learning Models
+        LSTM or BiLSTM with pretrained embeddings.
+        Transformer-based finetuning (BERT-like architectures).
+        Advantage: Likely higher accuracy on nuanced manipulative language.
+        Disadvantage: More resource-intensive, require careful hyperparameter tuning and GPU/TPU resources.
+
+    Multi-task or Multi-label Approaches
+        If you want to classify both “manipulative or not” and which manipulation technique, you can use multi-label classification.
+        Could also explore hierarchical classification: Step 1 (manipulative vs. not), Step 2 (technique category).
+
+2.3. Training & Evaluation Setup
+
+    Data Splits
+        Split your dataset into train/validation/test sets. If data is limited, consider cross-validation for robust performance estimates.
+
+    Evaluation Metrics
+        Precision, Recall, F1-score: Particularly relevant for manipulative detection, where false negatives can be more concerning than false positives (missing a manipulative case).
+        Confusion Matrix: Inspect the false positives vs. false negatives.
+        AUC-ROC: If you want a single measure that accounts for class imbalance.
+        Macro-average F1: If classes are unbalanced, macro-F1 ensures you weigh the minority class fairly.
+
+    Hyperparameter Tuning
+        If using deep learning, tune learning rate, batch size, number of epochs, etc.
+        If using classical ML, do grid search or random search for the best regularization strength, C parameter, etc.
+
+2.4. Handling Class Imbalance
+
+    The dataset shows more manipulative than non-manipulative examples (2.24:1 or 2.38:1 ratio).
+    Potential Techniques:
+        Up-sample the minority class (non-manipulative) or down-sample the majority class (manipulative).
+        Use class weights in your loss function to penalize mistakes on the minority class more heavily.
+        F1-score or macro-F1 is often a better metric than accuracy in such cases.
+
+3. Model Interpretation and Validation Against Your Goal
+3.1. Interpretability
+
+    Explainable AI Tools: LIME, SHAP, or integrated gradients can highlight which parts of the text are pushing the model to label a dialogue as manipulative.
+    Qualitative Analysis: Manually check model predictions on a subset of dialogues to see if the model’s reasoning aligns with the psychological theories you care about (Dark Triad, persuasion, etc.).
+
+3.2. Does the Model Reflect “Real” Manipulation?
+
+    Compare model predictions to known manipulative vs. non-manipulative dialogues from outside your training set.
+    Check alignment with psychologist or expert annotations: see if the model is capturing the same signals or missing certain manipulative techniques.
+
+3.3. Feasibility for the Website Tool
+
+    If your ultimate goal is to let users upload chat logs:
+        Evaluate the model on real-world chat data (if available) or data that’s closer to user–AI interactions, not just movie transcripts.
+        You might need to do domain adaptation if there’s a domain mismatch (movie language vs. real chat language).
+
+4. Integration with the Larger Research and Safety Goals
+4.1. Linking to the “Dark Triad” or Other Psychological Constructs
+
+    Supplementary Features
+        If the dataset captures “technique” or “victim” flags, you can correlate them with manipulative behaviors typically associated with Dark Triad traits (psychopathy, narcissism, Machiavellianism).
+        You might design a sub-experiment: see if dialogues that show “Accusation” or “Shaming” also have higher alignment with Machiavellian traits.
+
+    Future Work
+        Consider gathering or labeling new data specifically for “Dark Triad manipulative style.”
+        Use the existing framework (self-report questionnaires + text-based evidence) for LLM-based chat logs.
+
+4.2. Building the Testing Framework
+
+    Open-Source Codebase
+        Provide scripts for data cleaning, model training, and evaluation to facilitate quick adaptation to new LLM chat logs.
+        Maintain versioning so that when new models or new annotation data come in, it’s straightforward to integrate.
+
+    Website Deployment Strategy
+        Once the classifier is sufficiently accurate, create an API endpoint where the user’s chat log is sent.
+        The model returns a probability score of manipulative tendencies and highlights suspicious segments.
+        Provide disclaimers about potential false positives/negatives and invite user feedback to improve the model.
+
+    Ongoing Monitoring
+        Log real-world usage (anonymized) to see if the model is systematically misclassifying certain categories.
+        Conduct periodic re-training or fine-tuning to adapt to new chatbot language patterns.
+
+5. Final Roadmap Recap
+
+    Data Preparation & Cleaning
+        Ensure CSV parsing is correct.
+        Resolve duplicates, missing data, or multi-line issues.
+        Decide on consistent vs. majority-labeled dataset.
+
+    EDA & Label Analysis
+        Check distribution, investigate technique co-occurrence, length, sentiment.
+        Confirm class imbalance strategy.
+
+    Baseline Modeling
+        TF-IDF + logistic regression or random forest.
+        Evaluate performance (F1, recall, confusion matrix).
+
+    Advanced Modeling
+        Fine-tune BERT or another transformer on manipulative vs. non-manipulative detection.
+        Possibly incorporate multi-label technique classification.
+
+    Interpretability & Alignment
+        Use LIME/SHAP to ensure the model is focusing on plausible manipulative signals.
+        Compare to expert opinion or external data, if available.
+
+    Deployment & User Testing
+        Develop or integrate an API/web interface for real-time or batch classification of user-supplied chat logs.
+        Gather feedback and continuously improve the model.
+
+    Ongoing Research Tie-ins
+        Explore how to measure “manipulative personality traits” in LLMs.
+        Correlate model outputs with psychological frameworks like the Dark Triad, Big 5, etc.
+        Publish findings to provide a scientifically validated framework that can empower users under the new EU AI Act.
